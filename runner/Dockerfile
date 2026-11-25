@@ -7,6 +7,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends git openssh-cli
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY known_hosts runner.py ./
+COPY known_hosts runner.py sandbox_check.py ./
 USER runner
 CMD ["python", "-u", "runner.py"]
