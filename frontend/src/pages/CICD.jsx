@@ -4,28 +4,31 @@ import { Badge, Err, useApp } from '../components/ui'
 
 const DEFAULT_GIT = { repo_url: '', branch: 'main', auto_validation: false, python_env: 'python3.11', timeout_s: 60, gate_policy: 'all_pass', gate_threshold: 100 }
 
-const WORKFLOW = (branch) => `# .github/workflows/evap-validation.yml  (in the System Under Test repository)
+const WORKFLOW = (branch) => `# .github/workflows/evap-validation.yml  (in the PRIVATE System Under Test repository)
 name: EVAP SIL validation
 on:
   push:
-    branches: [${branch}]        # trusted branch only — no pull_request triggers
+    branches: [${branch}]        # trusted branch only — never pull_request
 permissions:
   contents: read
 concurrency:
   group: evap-\${{ github.sha }}
 jobs:
-  evap:
-    if: github.event_name == 'push' && github.repository_owner == '<owner>'
+  evap-validation:
+    if: github.event_name == 'push' && github.repository == '<owner>/<repo>'
     runs-on: [self-hosted, evap-local]
     timeout-minutes: 20
     steps:
-      - name: Trigger EVAP and wait for the quality gate
+      - uses: actions/checkout@v4          # only the CI client, SUT code is run by EVAP
+        with:
+          sparse-checkout: .github/evap
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Validate commit with EVAP (quality gate)
         env:
           EVAP_URL: http://127.0.0.1:8300
           EVAP_CI_TOKEN: \${{ secrets.EVAP_CI_TOKEN }}
-        run: python3 - <<'PY'
-          # evap_ci.py from the EVAP repository (stdlib only)
-        PY`
+        run: python3 .github/evap/evap_ci.py`
 
 function Users() {
   const { data: users, reload, error } = useApi('/users')

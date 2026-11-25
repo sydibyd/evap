@@ -1,0 +1,55 @@
+{
+  "scenario": [
+    {
+      "commit": "Commit A",
+      "sha": "8bc7498173bc2462763c9ce3356badea32039ed6",
+      "expected": "PASS",
+      "evap_run": 2,
+      "evap_verdict": "PASS",
+      "quality_gate": "PASSED",
+      "executions": [
+        "PASS"
+      ],
+      "github_conclusion": "success",
+      "github_run": "https://github.com/sydibyd/mini-bms/actions/runs/45658935917",
+      "result": "OK"
+    },
+    {
+      "commit": "Commit B",
+      "sha": "eb4f7d3428ee9c7faf48221567d2bbf45babdea4",
+      "expected": "FAIL",
+      "evap_run": 3,
+      "evap_verdict": "FAIL",
+      "quality_gate": "FAILED",
+      "executions": [
+        "FAIL"
+      ],
+      "github_conclusion": "failure",
+      "github_run": "https://github.com/sydibyd/mini-bms/actions/runs/45659011034",
+      "result": "OK"
+    },
+    {
+      "commit": "Commit C",
+      "sha": "95be5085664dec54186e83d93eb30cc1680ba488",
+      "expected": "PASS",
+      "evap_run": 4,
+      "evap_verdict": "PASS",
+      "quality_gate": "PASSED",
+      "executions": [
+        "PASS"
+      ],
+      "github_conclusion": "success",
+      "github_run": "https://github.com/sydibyd/mini-bms/actions/runs/45659086130",
+      "result": "OK"
+    }
+  ],
+  "idempotency": {
+    "rerun_github_run": "45659086130",
+    "evap_runs_for_sha": [
+      4
+    ],
+    "result": "OK"
+  },
+  "overall": "PASS",
+  "executed_at": "2026-11-25T16:55:38Z"
+}
