@@ -1,0 +1,34 @@
+# Continuous SIL validation through EVAP.
+# Security: runs on a self-hosted runner, so it is triggered ONLY by pushes to the trusted
+# branch of this PRIVATE repository — never by pull requests or forks.
+name: EVAP SIL validation
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evap-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  evap-validation:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'sydibyd/mini-bms'
+    runs-on: [self-hosted, evap-local]
+    timeout-minutes: 20
+    steps:
+      # Only the CI client is fetched (sparse); the SUT code is checked out and executed by EVAP,
+      # inside its sandbox — never on the runner host.
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/evap
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Validate commit with EVAP (quality gate)
+        env:
+          EVAP_URL: http://127.0.0.1:8300
+          EVAP_CI_TOKEN: ${{ secrets.EVAP_CI_TOKEN }}
+        run: python3 .github/evap/evap_ci.py

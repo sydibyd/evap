@@ -1,0 +1,89 @@
+# EVAP — Embedded Validation Automation Platform
+# Start:  cp .env.example .env  (edit secrets)  &&  docker compose up -d --build
+name: evap-v2
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: evap
+      POSTGRES_USER: evap
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evap -d evap"]
+      interval: 5s
+      retries: 10
+    networks: [internal]
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      EVAP_DATABASE_URL: postgresql+psycopg://evap:${POSTGRES_PASSWORD}@db:5432/evap
+      EVAP_JWT_SECRET: ${EVAP_JWT_SECRET:?set EVAP_JWT_SECRET in .env}
+      EVAP_RUNNER_TOKEN: ${EVAP_RUNNER_TOKEN:?set EVAP_RUNNER_TOKEN in .env}
+      EVAP_BOOTSTRAP_ADMIN_USER: ${EVAP_BOOTSTRAP_ADMIN_USER:-}
+      EVAP_BOOTSTRAP_ADMIN_PASSWORD: ${EVAP_BOOTSTRAP_ADMIN_PASSWORD:-}
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    networks: [internal]
+
+  runner:
+    build:
+      context: ./runner
+      args:
+        RUNNER_UID: ${RUNNER_UID:-1000}
+    restart: unless-stopped
+    depends_on:
+      backend: { condition: service_healthy }
+      sandbox-image: { condition: service_completed_successfully }
+    environment:
+      EVAP_API_URL: http://backend:8000
+      EVAP_RUNNER_TOKEN: ${EVAP_RUNNER_TOKEN}
+      SANDBOX_IMAGE: evap-v2-sandbox:latest
+      SANDBOX_MEMORY: ${SANDBOX_MEMORY:-256m}
+      SANDBOX_CPUS: ${SANDBOX_CPUS:-1.0}
+    group_add: ["${DOCKER_GID:?set DOCKER_GID in .env (stat -c %g /var/run/docker.sock)}"]
+    volumes:
+      # The runner (trusted code) launches sandboxes; the sandboxes never get the socket.
+      - /var/run/docker.sock:/var/run/docker.sock
+      - repocache:/var/cache/evap
+    secrets:
+      - git_deploy_key
+    security_opt: [no-new-privileges:true]
+    networks: [internal, egress]
+
+  # Build-only service: produces the disposable SIL sandbox image, then exits.
+  sandbox-image:
+    build: ./sandbox
+    image: evap-v2-sandbox:latest
+    network_mode: none
+    restart: "no"
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      backend: { condition: service_healthy }
+    ports:
+      - "127.0.0.1:${EVAP_HTTP_PORT:-8300}:8080"
+    networks: [internal, egress]
+
+secrets:
+  git_deploy_key:
+    file: ${GIT_DEPLOY_KEY_FILE:-./secrets/git_deploy_key}
+
+volumes:
+  pgdata:
+  repocache:
+
+networks:
+  internal:
+    internal: true
+  egress: {}
